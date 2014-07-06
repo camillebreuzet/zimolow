@@ -1,5 +1,5 @@
 ﻿var clamp = function (x, min, max) {
-    return x < min ? min : (x > max ? max : x);
+    return x < min ? min: (x > max ? max : x);
 };
 
 var Q = Quintus()
@@ -110,25 +110,26 @@ Q.Sprite.extend("Player", {
             x: Q.el.width / 2,
             y: Q.el.height - 60,
             type: Q.SPRITE_NONE,
-            speed: 10,
+            speed: 250,
             life: 5
         });
         this.add("animation");
         this.play("default");
-        this.add("Gun");
+        //this.add("Gun");
+        this.add("TriGun");
     },
     step: function (dt) {
         if (Q.inputs['left'])
-            this.p.x -= this.p.speed;
+            this.p.x -= this.p.speed * dt;
         if (Q.inputs['right'])
-            this.p.x += this.p.speed;
+            this.p.x += this.p.speed * dt;
         if (Q.inputs['up'])
-            this.p.y -= this.p.speed;
+            this.p.y -= this.p.speed * dt;
         if (Q.inputs['down'])
-            this.p.y += this.p.speed;
+            this.p.y += this.p.speed * dt;
 
-        /*this.p.x = clamp(this.p.x, 0 + (this.p.w / 2), Q.el.width - (this.p.w / 2));
-        this.p.y = clamp(this.p.y, 0 + (this.p.h / 2), Q.el.height - (this.p.h / 2));*/
+        this.p.x = clamp(this.p.x, 0 + (this.p.w / 2), Q.el.width - (this.p.w / 2));
+        //this.p.y = clamp(this.p.y, 0 + (this.p.h / 2), Q.el.height - (this.p.h / 2));
     }
 });
 
@@ -167,16 +168,18 @@ Q.Sprite.extend("Shot", {
         this._super(p, {
             sprite: "shot",
             sheet: "shot",
-            speed: 200
+            speed: 200,
         });
+        this.dx = 0;
 
         this.add("animation");
         this.play("default");
     },
     step: function (dt) {
         this.p.y -= this.p.speed * dt;
+        this.p.x += this.p.dx * this.p.speed * dt;
         
-        if (this.p.y > Q.el.height || this.p.y < 0) {
+        if (this.p.y < this.stage.viewport.y - Q.el.height || this.p.y > this.stage.viewport.y + Q.el.height ) {
             this.destroy();
         }
     }
@@ -201,6 +204,7 @@ Q.component("BasicAI", {
         move: function(dt) {
             var entity = this;
             entity.p.x -= entity.p.speed * dt;
+            entity.p.y -= entity.p.speed * dt;
             if (entity.p.x > Q.el.width - (entity.p.w / 2) || entity.p.x < 0 + (entity.p.w / 2)) {
                 entity.p.speed = -entity.p.speed;
             }
@@ -214,6 +218,53 @@ Q.component("BasicAI", {
             if (player.p.x + player.p.w > entity.p.x && player.p.x - player.p.w < entity.p.x) {
                 this.fire(Q.SPRITE_ENEMY);
             }
+        }
+    }
+});
+
+Q.component("TriGun", {
+    added: function () {
+        this.entity.p.shots = [];
+        this.entity.p.canFire = true;
+        this.entity.on("step", "handleFiring");
+    },
+
+    extend: {
+        handleFiring: function (dt) {
+            var entity = this;
+
+            for (var i = entity.p.shots.length - 1; i >= 0; i--) {
+                if (entity.p.shots[i].isDestroyed) {
+                    entity.p.shots.splice(i, 1);
+                }
+            }
+
+            if (Q.inputs['fire'] && entity.p.type == Q.SPRITE_NONE) {
+                entity.fire(Q.SPRITE_FRIENDLY);
+                entity.fire(Q.SPRITE_FRIENDLY);
+                entity.fire(Q.SPRITE_FRIENDLY);
+            }
+        },
+
+        fire: function (type) {
+            var entity = this;
+
+            if (!entity.p.canFire)
+                return;
+
+            var shot;
+
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x - 10, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:-0.5 }));
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:0 }));
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x + 10, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:0.5 }));
+            setTimeout(function () {
+                entity.p.canFire = true;
+            }, 200);
+           
+            entity.p.shots.push(shot);
+            entity.p.canFire = false;
+
+
         }
     }
 });
