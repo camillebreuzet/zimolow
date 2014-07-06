@@ -26,7 +26,8 @@ $RECYCLE.BIN/
 .LSOverride
 
 # Icon must ends with two \r.
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -45,3 +46,4 @@ obj/Debug/WebApplication1.csprojResolveAssemblyReference.cache
 *.pdb
 WebApplication1.csproj
 WebApplication1.csproj.user
+/nbproject/private/
