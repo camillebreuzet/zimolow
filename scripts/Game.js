@@ -4,7 +4,7 @@ var clamp = function (x, min, max) {
 
 var Q = Quintus()
     .include("Sprites, Anim, Input, Touch, Scenes, UI,2D,Audio")
-    .setup({ width: 600, height: 800 })
+    .setup({ width: 600, height: 600 })
     .touch()
     .enableSound();
 
@@ -82,11 +82,17 @@ Q.Sprite.extend("PlayerHB", {
                     Q.stageScene("endGame", 1, { label: "You Died!" });
                 }
             }
-            /*else if (col.obj.isA("Powerup")) {
-                var player = Q("Player").first();
-                this.player.add(new Q.TriGun());
+            if (col.obj.isA("Powerup")) {
+                var test = Q("Player").first();
+                test.del("Gun");
+                test.add("TriGun");
+                col.obj.destroy();
+                setTimeout(function() {
+                    test.del("TriGun");
+                test.add(new Q.Gun());
+                }, 10000);
                 
-            }*/
+            }
             
         });
 
@@ -116,7 +122,7 @@ Q.Sprite.extend("Player", {
             x: Q.el.width / 2,
             y: Q.el.height - 60,
             type: Q.SPRITE_NONE,
-            speed: 10,
+            speed: 250,
             life: 5
         });
         this.add("animation");
@@ -125,16 +131,16 @@ Q.Sprite.extend("Player", {
     },
     step: function (dt) {
         if (Q.inputs['left'])
-            this.p.x -= this.p.speed;
+            this.p.x -= this.p.speed * dt;
         if (Q.inputs['right'])
-            this.p.x += this.p.speed;
+            this.p.x += this.p.speed * dt;
         if (Q.inputs['up'])
-            this.p.y -= this.p.speed;
+            this.p.y -= this.p.speed * dt;
         if (Q.inputs['down'])
-            this.p.y += this.p.speed;
+            this.p.y += this.p.speed * dt;
 
-        /*this.p.x = clamp(this.p.x, 0 + (this.p.w / 2), Q.el.width - (this.p.w / 2));
-        this.p.y = clamp(this.p.y, 0 + (this.p.h / 2), Q.el.height - (this.p.h / 2));*/
+        this.p.x = clamp(this.p.x, 0 + (this.p.w / 2), Q.el.width - (this.p.w / 2));
+        //this.p.y = clamp(this.p.y, 0 + (this.p.h / 2), Q.el.height - (this.p.h / 2));
     }
 });
 
@@ -181,8 +187,9 @@ Q.Sprite.extend("Shot", {
     },
     step: function (dt) {
         this.p.y -= this.p.speed * dt;
+        this.p.x += this.p.dx * this.p.speed * dt;
         
-        if (this.p.y > Q.el.height || this.p.y < 0) {
+        if (this.p.y < this.stage.viewport.y - Q.el.height || this.p.y > this.stage.viewport.y + Q.el.height ) {
             this.destroy();
         }
     }
@@ -276,12 +283,12 @@ Q.component("Gun", {
 
             var shot;
             if (type == Q.SPRITE_FRIENDLY) {
-                shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y - 50, speed: 200, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY }));
+                shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y - 50, speed: 200, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY,dx:0 }));
                 setTimeout(function () {
                     entity.p.canFire = true;
                 }, 200);
             } else {
-                shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y + entity.p.h - 20, speed: -200, type: Q.SPR | Q.SPRITE_ENEMY }));
+                shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y + entity.p.h - 20, speed: -200, type: Q.SPR | Q.SPRITE_ENEMY,dx:0 }));
                 setTimeout(function () {
                     entity.p.canFire = true;
                 }, 500);
@@ -293,6 +300,55 @@ Q.component("Gun", {
         }
     }
 });
+
+Q.component("TriGun", {
+    added: function () {
+        this.entity.p.shots = [];
+        this.entity.p.canFire = true;
+        this.entity.on("step", "handleFiring");
+    },
+
+    extend: {
+        handleFiring: function (dt) {
+            var entity = this;
+
+            for (var i = entity.p.shots.length - 1; i >= 0; i--) {
+                if (entity.p.shots[i].isDestroyed) {
+                    entity.p.shots.splice(i, 1);
+                }
+            }
+
+            if (Q.inputs['fire'] && entity.p.type == Q.SPRITE_NONE) {
+                entity.fire(Q.SPRITE_FRIENDLY);
+                entity.fire(Q.SPRITE_FRIENDLY);
+                entity.fire(Q.SPRITE_FRIENDLY);
+            }
+        },
+
+        fire: function (type) {
+            var entity = this;
+
+            if (!entity.p.canFire)
+                return;
+
+            var shot;
+
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x - 10, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:-0.5 }));
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:0 }));
+            shot = Q.stage().insert(new Q.Shot({ x: entity.p.x + 10, y: entity.p.y - 50, speed: 400, type: Q.SPRITE_DEFAULT | Q.SPRITE_FRIENDLY, dx:0.5 }));
+            setTimeout(function () {
+                entity.p.canFire = true;
+            }, 200);
+           
+            entity.p.shots.push(shot);
+            entity.p.canFire = false;
+
+
+        }
+    }
+});
+
+
 
 Q.scene("mainLevel", function (stage) {
     Q.gravity = 0;
